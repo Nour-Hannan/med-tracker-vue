@@ -1,8 +1,8 @@
 <template>
   <div class="login-container">
     <div class="login-card">
-      <h1>MedTracker</h1>
-      <p class="subtitle">Therapiebegleitung für Arzt & Patient</p>
+      <h1>🏥 MedTracker</h1>
+      <h2>Patienten-Login</h2>
 
       <input
         type="email"
@@ -15,15 +15,14 @@
         v-model="password"
         placeholder="Passwort"
         class="login-input"
-        @keyup.enter="login"
       />
 
       <button @click="login" class="login-btn">Anmelden</button>
 
-      <div class="demo-hint">
-        <p>🔹 Patient: p@web.de / 123</p>
-        <p>🔹 Arzt: a@web.de / 123</p>
-      </div>
+      <p class="demo-hint">
+        Demo-Zugang:<br />
+        patient@example.com / 123
+      </p>
     </div>
   </div>
 </template>
@@ -37,16 +36,11 @@ const password = ref('')
 const router = useRouter()
 
 function login() {
-  if (email.value === 'p@web.de' && password.value === '123') {
-    localStorage.setItem('role', 'patient')
-    localStorage.setItem('loggedIn', 'true')
+  if (email.value === 'patient@example.com' && password.value === '123') {
+    localStorage.setItem('patientLoggedIn', 'true')
     router.push('/patient/dashboard')
-  } else if (email.value === 'a@web.de' && password.value === '123') {
-    localStorage.setItem('role', 'doctor')
-    localStorage.setItem('loggedIn', 'true')
-    router.push('/arzt')
   } else {
-    alert('Falsche Zugangsdaten')
+    alert('Falsche Zugangsdaten (Demo: patient@example.com / 123)')
   }
 }
 </script>
@@ -75,9 +69,10 @@ h1 {
   margin-bottom: 8px;
 }
 
-.subtitle {
-  color: #5a6874;
-  margin-bottom: 28px;
+h2 {
+  font-size: 20px;
+  margin-bottom: 24px;
+  color: #2c3e50;
 }
 
 .login-input {

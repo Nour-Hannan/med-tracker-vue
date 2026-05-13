@@ -1,355 +1,324 @@
 <template>
-  <div class="patient-dashboard">
-    <div class="header-card">
-      <div class="welcome">
-        <h1>👋 Hallo, {{ patientName }}</h1>
-        <p>Ihr persönlicher Medikationsplan</p>
-      </div>
-      <button @click="goBack" class="back-home">← Zurück</button>
+  <div class="patient-view">
+    <div class="top-bar">
+      <span class="logo">MedTracker</span>
+      <button @click="logout" class="logout-btn">Abmelden</button>
     </div>
 
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-icon">💊</div>
-        <div class="stat-info">
-          <h3>{{ medications.length }}</h3>
-          <p>Aktive Medikamente</p>
+    <div class="content">
+      <!-- Willkommen -->
+      <div class="welcome-card">
+        <div class="avatar">👤</div>
+        <div>
+          <h2>Hallo, Anna Schmidt</h2>
+          <p>Ihr Therapieplan</p>
         </div>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon">📅</div>
-        <div class="stat-info">
-          <h3>{{ nextAppointment }}</h3>
-          <p>Nächster Arzttermin</p>
-        </div>
-      </div>
-    </div>
 
-    <div class="section">
-      <h2>📋 Mein Medikationsplan</h2>
-      <div class="medication-list">
-        <div v-for="med in medications" :key="med.id" class="med-item">
-          <div class="med-icon">💊</div>
-          <div class="med-details">
-            <strong>{{ med.name }}</strong>
-            <span class="dosage">{{ med.dosage }}</span>
-            <span class="time">🕐 {{ med.time }}</span>
+      <!-- Fortschrittsring -->
+      <div class="progress-card">
+        <div class="progress-ring">
+          <svg width="100" height="100">
+            <circle
+              cx="50"
+              cy="50"
+              r="42"
+              stroke="#e0ecf3"
+              stroke-width="6"
+              fill="none"
+            />
+            <circle
+              cx="50"
+              cy="50"
+              r="42"
+              stroke="#42b883"
+              stroke-width="6"
+              fill="none"
+              :stroke-dasharray="circumference"
+              :stroke-dashoffset="progressOffset"
+              stroke-linecap="round"
+              transform="rotate(-90 50 50)"
+            />
+          </svg>
+          <div class="progress-text">{{ takenPercent }}%</div>
+        </div>
+        <div class="progress-info">
+          <span class="taken-count">{{ takenCount }}</span> von
+          <span class="total-count">{{ totalMeds }}</span> Medikamenten
+          heute genommen
+        </div>
+      </div>
+
+      <!-- Medikationsplan mit Checkbox -->
+      <div class="section">
+        <h3>Medikationsplan</h3>
+        <div class="med-list">
+          <div
+            v-for="med in medications"
+            :key="med.id"
+            class="med-row"
+          >
+            <div class="med-info">
+              <span class="med-name">{{ med.name }}</span>
+              <span class="med-dosis">{{ med.dosage }}</span>
+              <span class="med-time">{{ med.time }}</span>
+            </div>
+            <label class="check-label">
+              <input
+                type="checkbox"
+                v-model="med.taken"
+                @change="updateProgress"
+              />
+              <span>genommen</span>
+            </label>
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="section">
-      <h2>🏥 Meine Diagnose</h2>
-      <div class="diagnose-card">
-        <p>{{ diagnose }}</p>
+      <!-- Diagnose & Termin -->
+      <div class="info-box">
+        <div class="info-row">
+          <span class="info-label">Diagnose</span>
+          <span>Hypertonie, Vitamin-D-Mangel</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Nächster Arzttermin</span>
+          <span>15. Juni 2026, 10:30 Uhr</span>
+        </div>
       </div>
-    </div>
 
-    <!-- Chat-Button -->
-    <button @click="showChat = true" class="chat-button">
-      💬 Chat mit Arzt
-    </button>
-
-    <!-- Chat-Modal -->
-    <div v-if="showChat" class="modal-overlay" @click.self="showChat = false">
-      <div class="chat-modal">
-        <div class="chat-header">
-          <h3>💬 Nachricht an Ihren Arzt</h3>
-          <button @click="showChat = false" class="close-chat">✕</button>
-        </div>
-        <div class="chat-messages">
-          <div class="message patient">
-            <p>Hallo, ich habe eine Frage zu meinen Medikamenten.</p>
-            <span class="time">Gerade eben</span>
-          </div>
-          <div class="message doctor">
-            <p>Ihr Arzt wird sich bei Ihnen melden. Diese Demo zeigt nur das UI.</p>
-            <span class="time">Demo-Modus</span>
-          </div>
-        </div>
-        <div class="chat-input">
-          <input type="text" placeholder="Nachricht schreiben..." v-model="chatMessage" />
-          <button @click="sendMessage">📤</button>
-        </div>
-        <p class="demo-note">ℹ️ Demo: Hier wird keine echte Nachricht gesendet.</p>
+      <!-- Chat-UI -->
+      <div class="chat-card">
+        <h3>Nachricht an Arzt</h3>
+        <textarea
+          v-model="chatMessage"
+          placeholder="Ihre Frage ..."
+        ></textarea>
+        <button @click="sendChatMessage" class="chat-send">
+          Senden (Demo)
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const showChat = ref(false)
 const chatMessage = ref('')
 
-const patientName = ref('Anna Schmidt')
-const diagnose = ref('Hypertonie (Bluthochdruck) - Regelmäßige Kontrolle erforderlich')
-const nextAppointment = ref('15. Juni 2026, 10:30 Uhr')
-
 const medications = ref([
-  { id: 1, name: 'Ramipril', dosage: '5mg', time: '08:00' },
-  { id: 2, name: 'Metoprolol', dosage: '25mg', time: '20:00' }
+  { id: 1, name: 'Ramipril', dosage: '5mg', time: '08:00', taken: false },
+  { id: 2, name: 'Metoprolol', dosage: '25mg', time: '20:00', taken: false },
+  { id: 3, name: 'Vitamin D3', dosage: '1000 IE', time: '10:00', taken: false },
+  { id: 4, name: 'Magnesium', dosage: '300mg', time: '12:00', taken: false },
+  { id: 5, name: 'Omega-3', dosage: '1000mg', time: '18:00', taken: false },
+  { id: 6, name: 'Vitamin B12', dosage: '500µg', time: '14:00', taken: false }
 ])
 
-function sendMessage() {
+const totalMeds = computed(() => medications.value.length)
+const takenCount = computed(() => medications.value.filter(m => m.taken).length)
+const takenPercent = computed(() => Math.round((takenCount.value / totalMeds.value) * 100))
+
+// Fortschrittsring
+const circumference = 2 * Math.PI * 42
+const progressOffset = computed(() => {
+  return circumference - (takenPercent.value / 100) * circumference
+})
+
+function updateProgress() {
+  localStorage.setItem('patientMeds', JSON.stringify(medications.value))
+}
+
+function loadFromLocalStorage() {
+  const saved = localStorage.getItem('patientMeds')
+  if (saved) {
+    medications.value = JSON.parse(saved)
+  }
+}
+
+function sendChatMessage() {
   if (chatMessage.value.trim()) {
-    // Nur UI-Demo – keine echte Funktion
-    alert('Demo: Ihre Nachricht "' + chatMessage.value + '" würde an den Arzt gesendet werden.')
+    alert('Ihre Nachricht wurde gesendet (Demo: Arzt antwortet nicht)')
     chatMessage.value = ''
   }
 }
 
-function goBack() {
+function logout() {
+  localStorage.removeItem('role')
+  localStorage.removeItem('loggedIn')
   router.push('/')
 }
+
+onMounted(() => {
+  const isLoggedIn = localStorage.getItem('loggedIn')
+  const role = localStorage.getItem('role')
+  if (!isLoggedIn || role !== 'patient') {
+    router.push('/')
+  }
+  loadFromLocalStorage()
+})
 </script>
 
 <style scoped>
-.patient-dashboard {
+.patient-view {
   min-height: 100vh;
-  background: #f0f7fc;
-  padding: 24px;
-  max-width: 800px;
-  margin: 0 auto;
+  background: #f4f9fd;
+  font-family: 'Segoe UI', system-ui;
 }
 
-.header-card {
-  background: linear-gradient(135deg, #1a5f7a 0%, #0e4156 100%);
-  border-radius: 28px;
-  padding: 24px;
-  color: white;
+.top-bar {
+  background: white;
+  padding: 16px 32px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  border-bottom: 1px solid #e0ecf3;
 }
 
-.welcome h1 {
-  font-size: 24px;
-  margin-bottom: 6px;
+.logo {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a5f7a;
 }
 
-.back-home {
-  background: rgba(255,255,255,0.2);
-  border: none;
-  color: white;
-  padding: 8px 16px;
+.logout-btn {
+  background: none;
+  border: 1px solid #cddfe7;
+  padding: 6px 14px;
   border-radius: 30px;
   cursor: pointer;
 }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 28px;
+.content {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 32px 20px;
 }
 
-.stat-card {
+.welcome-card {
   background: white;
-  border-radius: 20px;
-  padding: 16px;
+  border-radius: 28px;
+  padding: 24px;
   display: flex;
+  gap: 16px;
   align-items: center;
-  gap: 14px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+  margin-bottom: 24px;
 }
 
-.stat-icon {
-  font-size: 36px;
+.avatar {
+  font-size: 48px;
 }
 
-.stat-info h3 {
-  font-size: 28px;
+.progress-card {
+  background: white;
+  border-radius: 28px;
+  padding: 24px;
+  text-align: center;
+  margin-bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.progress-ring {
+  position: relative;
+  width: 100px;
+  height: 100px;
+}
+
+.progress-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 18px;
+  font-weight: 600;
   color: #1a5f7a;
 }
 
-.stat-info p {
-  font-size: 13px;
-  color: #6c7a89;
+.taken-count {
+  font-size: 24px;
+  font-weight: 600;
+  color: #42b883;
 }
 
-.section {
-  margin-bottom: 28px;
-}
-
-.section h2 {
-  margin-bottom: 16px;
-  font-size: 18px;
-  color: #2c3e50;
-}
-
-.medication-list {
+.med-list {
   background: white;
   border-radius: 20px;
   overflow: hidden;
 }
 
-.med-item {
-  display: flex;
-  align-items: center;
-  padding: 16px;
-  border-bottom: 1px solid #eef2f5;
-  gap: 14px;
-}
-
-.med-icon {
-  font-size: 28px;
-}
-
-.med-details {
-  flex: 1;
-}
-
-.dosage {
-  background: #e8f4f8;
-  padding: 2px 10px;
-  border-radius: 16px;
-  font-size: 12px;
-  margin-left: 10px;
-}
-
-.time {
-  display: block;
-  font-size: 12px;
-  color: #6c7a89;
-  margin-top: 4px;
-}
-
-.diagnose-card {
-  background: white;
-  border-radius: 20px;
-  padding: 20px;
-  border-left: 5px solid #42b883;
-}
-
-.chat-button {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  background: #1a5f7a;
-  color: white;
-  border: none;
-  padding: 14px 24px;
-  border-radius: 40px;
-  font-size: 16px;
-  cursor: pointer;
-  box-shadow: 0 4px 15px rgba(26,95,122,0.3);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  z-index: 100;
-}
-
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.chat-modal {
-  background: white;
-  border-radius: 28px;
-  width: 90%;
-  max-width: 450px;
-  height: 550px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.chat-header {
+.med-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  background: #1a5f7a;
-  color: white;
+  border-bottom: 1px solid #eef2f5;
 }
 
-.close-chat {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 24px;
+.med-name {
+  font-weight: 600;
+}
+
+.med-dosis, .med-time {
+  font-size: 13px;
+  color: #5a6e7c;
+  margin-left: 12px;
+}
+
+.check-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
   cursor: pointer;
 }
 
-.chat-messages {
-  flex: 1;
+.info-box {
+  background: white;
+  border-radius: 20px;
   padding: 20px;
-  overflow-y: auto;
+  margin: 24px 0;
+}
+
+.info-row {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #eef2f5;
 }
 
-.message {
-  max-width: 80%;
-  padding: 10px 14px;
-  border-radius: 18px;
+.info-label {
+  font-weight: 600;
+  color: #1a5f7a;
 }
 
-.message.patient {
+.chat-card {
+  background: white;
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 32px;
+}
+
+.chat-card textarea {
+  width: 100%;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid #cddfe7;
+  margin: 12px 0;
+}
+
+.chat-send {
   background: #1a5f7a;
   color: white;
-  align-self: flex-end;
-  border-bottom-right-radius: 4px;
-}
-
-.message.doctor {
-  background: #eef2f5;
-  color: #2c3e50;
-  align-self: flex-start;
-  border-bottom-left-radius: 4px;
-}
-
-.message .time {
-  font-size: 10px;
-  opacity: 0.7;
-  display: block;
-  margin-top: 4px;
-}
-
-.chat-input {
-  display: flex;
-  padding: 16px;
-  gap: 10px;
-  border-top: 1px solid #eef2f5;
-}
-
-.chat-input input {
-  flex: 1;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 25px;
-  outline: none;
-}
-
-.chat-input button {
-  background: #1a5f7a;
   border: none;
-  padding: 8px 20px;
-  border-radius: 25px;
-  color: white;
+  padding: 8px 16px;
+  border-radius: 30px;
   cursor: pointer;
-}
-
-.demo-note {
-  text-align: center;
-  font-size: 11px;
-  color: #aaa;
-  padding: 8px;
 }
 </style>

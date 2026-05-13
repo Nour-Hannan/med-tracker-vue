@@ -2,18 +2,18 @@
   <div class="dashboard">
     <div class="sidebar">
       <div class="logo">
-        <h2>🏥 MedTracker</h2>
-        <span class="role-badge">👨‍⚕️ Arzt</span>
+        <h2>MedTracker</h2>
+        <span class="role-badge">Arzt</span>
       </div>
       <nav>
         <button @click="activeTab = 'patients'" :class="{ active: activeTab === 'patients' }">
-          📋 Patienten
+          Patienten
         </button>
         <button @click="activeTab = 'prescriptions'" :class="{ active: activeTab === 'prescriptions' }">
-          💊 Verschreibungen
+          Verschreibungen
         </button>
       </nav>
-      <button @click="goBack" class="back-btn">← Zurück zur Auswahl</button>
+      <button @click="logout" class="back-btn">Abmelden</button>
     </div>
 
     <div class="main-content">
@@ -34,8 +34,8 @@
               </div>
             </div>
             <div class="patient-actions">
-              <button @click="selectPatient(patient)" class="btn-prescribe">💊 Medikament verschreiben</button>
-              <button @click="deletePatient(patient.id)" class="btn-delete">🗑️</button>
+              <button @click="selectPatient(patient)" class="btn-prescribe">Medikament verschreiben</button>
+              <button @click="deletePatient(patient.id)" class="btn-delete">Löschen</button>
             </div>
           </div>
         </div>
@@ -52,7 +52,7 @@
               <strong>{{ prescription.patientName }}</strong> — {{ prescription.medicationName }}
               <span class="dosage">{{ prescription.dosage }}</span>
             </div>
-            <div class="prescription-time">🕐 Täglich um {{ prescription.time }}</div>
+            <div class="prescription-time">Täglich um {{ prescription.time }}</div>
           </div>
         </div>
       </div>
@@ -75,8 +75,8 @@
     <div v-if="selectedPatient" class="modal-overlay" @click.self="selectedPatient = null">
       <div class="modal">
         <h2>Medikament verschreiben für {{ selectedPatient.name }}</h2>
-        <input v-model="newMedication.name" placeholder="Medikament (z.B. Ibuprofen)" class="modal-input" />
-        <input v-model="newMedication.dosage" placeholder="Dosierung (z.B. 400mg)" class="modal-input" />
+        <input v-model="newMedication.name" placeholder="Medikament" class="modal-input" />
+        <input v-model="newMedication.dosage" placeholder="Dosierung" class="modal-input" />
         <input v-model="newMedication.time" placeholder="Uhrzeit (z.B. 08:00)" class="modal-input" />
         <div class="modal-buttons">
           <button @click="addPrescription" class="btn-primary">Verschreiben</button>
@@ -88,7 +88,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -96,13 +96,11 @@ const activeTab = ref('patients')
 const showAddPatient = ref(false)
 const selectedPatient = ref(null)
 
-// Patienten-Daten
 const patients = ref([
   { id: 1, name: 'Anna Schmidt', diagnose: 'Hypertonie' },
   { id: 2, name: 'Max Mustermann', diagnose: 'Diabetes Typ 2' }
 ])
 
-// Medikamenten-Daten (Verschreibungen)
 const prescriptions = ref([
   { id: 1, patientId: 1, patientName: 'Anna Schmidt', medicationName: 'Ramipril', dosage: '5mg', time: '08:00' },
   { id: 2, patientId: 1, patientName: 'Anna Schmidt', medicationName: 'Metoprolol', dosage: '25mg', time: '20:00' },
@@ -152,9 +150,19 @@ function addPrescription() {
   }
 }
 
-function goBack() {
+function logout() {
+  localStorage.removeItem('loggedIn')
+  localStorage.removeItem('role')
   router.push('/')
 }
+
+onMounted(() => {
+  const isLoggedIn = localStorage.getItem('loggedIn')
+  const role = localStorage.getItem('role')
+  if (!isLoggedIn || role !== 'doctor') {
+    router.push('/')
+  }
+})
 </script>
 
 <style scoped>
