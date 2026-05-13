@@ -1,20 +1,20 @@
 <script setup>
-  import MedicationPlan from './components/MedicationPlan.vue'
+import { RouterView } from 'vue-router'
 </script>
 
 <template>
-  <main>
-    <MedicationPlan />
-  </main>
+  <RouterView />
 </template>
 
 <style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 body {
-  font-family: Arial, sans-serif;
-  background-color: #f4f7f6;
-  display: flex;
-  justify-content: center;
-  padding-top: 50px;
-  text-align: center;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #f0f7fc;
 }
 </style>
