@@ -17,13 +17,11 @@
     </div>
 
     <div class="main-content">
-      <!-- Patienten-Tab -->
       <div v-if="activeTab === 'patients'">
         <div class="header">
           <h1>Meine Patienten</h1>
           <button @click="showAddPatient = true" class="btn-primary">+ Neuer Patient</button>
         </div>
-
         <div class="patient-list">
           <div v-for="patient in patients" :key="patient.id" class="patient-card">
             <div class="patient-info">
@@ -33,15 +31,21 @@
                 <p class="patient-diagnose">{{ patient.diagnose }}</p>
               </div>
             </div>
+            <div class="patient-progress">
+              <div class="progress-bar">
+                <div class="progress-fill" :style="{ width: patientProgress(patient.id) + '%' }"></div>
+              </div>
+              <span class="progress-text">{{ patientProgress(patient.id) }}%</span>
+            </div>
             <div class="patient-actions">
-              <button @click="selectPatient(patient)" class="btn-prescribe">Medikament verschreiben</button>
+              <button @click="openDiagnoseModal(patient)" class="btn-diagnose">Diagnose</button>
+              <button @click="selectPatient(patient)" class="btn-prescribe">Medikament</button>
               <button @click="deletePatient(patient.id)" class="btn-delete">Löschen</button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Verschreibungen-Tab -->
       <div v-if="activeTab === 'prescriptions'">
         <div class="header">
           <h1>Alle Verschreibungen</h1>
@@ -52,7 +56,10 @@
               <strong>{{ prescription.patientName }}</strong> — {{ prescription.medicationName }}
               <span class="dosage">{{ prescription.dosage }}</span>
             </div>
-            <div class="prescription-time">Täglich um {{ prescription.time }}</div>
+            <div class="prescription-actions">
+              <span class="prescription-time">Täglich um {{ prescription.time }}</span>
+              <button @click="deletePrescription(prescription.id)" class="btn-delete-sm">✕</button>
+            </div>
           </div>
         </div>
       </div>
@@ -77,10 +84,23 @@
         <h2>Medikament verschreiben für {{ selectedPatient.name }}</h2>
         <input v-model="newMedication.name" placeholder="Medikament" class="modal-input" />
         <input v-model="newMedication.dosage" placeholder="Dosierung" class="modal-input" />
-        <input v-model="newMedication.time" placeholder="Uhrzeit (z.B. 08:00)" class="modal-input" />
+        <input v-model="newMedication.time" placeholder="Uhrzeit" class="modal-input" />
         <div class="modal-buttons">
           <button @click="addPrescription" class="btn-primary">Verschreiben</button>
           <button @click="selectedPatient = null" class="btn-secondary">Abbrechen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Diagnose bearbeiten -->
+    <div v-if="showDiagnoseModal" class="modal-overlay" @click.self="showDiagnoseModal = false">
+      <div class="modal">
+        <h2>Diagnose bearbeiten</h2>
+        <p class="modal-patient">{{ currentPatient?.name }}</p>
+        <input v-model="editedDiagnose" placeholder="Neue Diagnose" class="modal-input" />
+        <div class="modal-buttons">
+          <button @click="saveDiagnose" class="btn-primary">Speichern</button>
+          <button @click="showDiagnoseModal = false" class="btn-secondary">Abbrechen</button>
         </div>
       </div>
     </div>
@@ -95,6 +115,9 @@ const router = useRouter()
 const activeTab = ref('patients')
 const showAddPatient = ref(false)
 const selectedPatient = ref(null)
+const showDiagnoseModal = ref(false)
+const currentPatient = ref(null)
+const editedDiagnose = ref('')
 
 const patients = ref([
   { id: 1, name: 'Anna Schmidt', diagnose: 'Hypertonie' },
@@ -111,6 +134,34 @@ const newPatient = ref({ name: '', diagnose: '' })
 const newMedication = ref({ name: '', dosage: '', time: '' })
 
 const allPrescriptions = computed(() => prescriptions.value)
+
+function patientProgress(patientId) {
+  const allMeds = JSON.parse(localStorage.getItem('patientMeds') || '[]')
+  const patientMeds = allMeds.filter(m => m.patientId === patientId)
+  if (patientMeds.length === 0) return 0
+  const taken = patientMeds.filter(m => m.taken === true).length
+  return Math.round((taken / patientMeds.length) * 100)
+}
+
+function openDiagnoseModal(patient) {
+  currentPatient.value = patient
+  editedDiagnose.value = patient.diagnose
+  showDiagnoseModal.value = true
+}
+
+function saveDiagnose() {
+  if (currentPatient.value) {
+    const patient = patients.value.find(p => p.id === currentPatient.value.id)
+    if (patient) {
+      patient.diagnose = editedDiagnose.value
+    }
+    showDiagnoseModal.value = false
+  }
+}
+
+function deletePrescription(id) {
+  prescriptions.value = prescriptions.value.filter(p => p.id !== id)
+}
 
 function addPatient() {
   if (newPatient.value.name) {
@@ -171,7 +222,6 @@ onMounted(() => {
   min-height: 100vh;
   background: #f0f4f8;
 }
-
 .sidebar {
   width: 260px;
   background: white;
@@ -181,12 +231,7 @@ onMounted(() => {
   flex-direction: column;
   gap: 32px;
 }
-
-.logo h2 {
-  color: #1a5f7a;
-  font-size: 20px;
-}
-
+.logo h2 { color: #1a5f7a; font-size: 20px; }
 .role-badge {
   display: inline-block;
   background: #e8f4f8;
@@ -196,13 +241,7 @@ onMounted(() => {
   font-size: 12px;
   margin-top: 8px;
 }
-
-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
+nav { display: flex; flex-direction: column; gap: 8px; }
 nav button {
   background: none;
   border: none;
@@ -214,16 +253,8 @@ nav button {
   transition: all 0.2s;
   color: #2c3e50;
 }
-
-nav button:hover {
-  background: #e8f4f8;
-}
-
-nav button.active {
-  background: #1a5f7a;
-  color: white;
-}
-
+nav button:hover { background: #e8f4f8; }
+nav button.active { background: #1a5f7a; color: white; }
 .back-btn {
   margin-top: auto;
   background: #eef2f5;
@@ -233,19 +264,13 @@ nav button.active {
   cursor: pointer;
   font-size: 14px;
 }
-
-.main-content {
-  flex: 1;
-  padding: 32px;
-}
-
+.main-content { flex: 1; padding: 32px; }
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
 }
-
 .btn-primary {
   background: #1a5f7a;
   color: white;
@@ -255,12 +280,7 @@ nav button.active {
   cursor: pointer;
   font-size: 14px;
 }
-
-.patient-list, .prescription-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
+.patient-list, .prescription-list { display: flex; flex-direction: column; gap: 16px; }
 
 .patient-card {
   background: white;
@@ -270,23 +290,35 @@ nav button.active {
   justify-content: space-between;
   align-items: center;
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  flex-wrap: wrap;
+  gap: 12px;
 }
+.patient-info { display: flex; gap: 16px; align-items: center; }
+.patient-avatar { font-size: 40px; }
+.patient-diagnose { font-size: 13px; color: #6c7a89; }
 
-.patient-info {
+.patient-progress {
   display: flex;
-  gap: 16px;
   align-items: center;
+  gap: 12px;
+  min-width: 120px;
 }
-
-.patient-avatar {
-  font-size: 40px;
+.progress-bar {
+  width: 80px;
+  height: 8px;
+  background: #eef2f5;
+  border-radius: 10px;
+  overflow: hidden;
 }
-
-.patient-diagnose {
-  font-size: 13px;
-  color: #6c7a89;
+.progress-fill {
+  height: 100%;
+  background: #42b883;
+  border-radius: 10px;
+  transition: width 0.3s ease;
 }
+.progress-text { font-size: 14px; font-weight: 600; min-width: 40px; }
 
+.patient-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .btn-prescribe {
   background: #42b883;
   color: white;
@@ -294,9 +326,7 @@ nav button.active {
   padding: 6px 16px;
   border-radius: 20px;
   cursor: pointer;
-  margin-right: 8px;
 }
-
 .btn-delete {
   background: #e74c3c;
   color: white;
@@ -305,7 +335,14 @@ nav button.active {
   border-radius: 20px;
   cursor: pointer;
 }
-
+.btn-diagnose {
+  background: #f39c12;
+  color: white;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+}
 .prescription-card {
   background: white;
   border-radius: 16px;
@@ -315,7 +352,6 @@ nav button.active {
   align-items: center;
   border-left: 4px solid #42b883;
 }
-
 .dosage {
   background: #e8f4f8;
   padding: 2px 8px;
@@ -323,7 +359,20 @@ nav button.active {
   font-size: 12px;
   margin-left: 8px;
 }
-
+.prescription-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.btn-delete-sm {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 12px;
+}
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -336,7 +385,6 @@ nav button.active {
   justify-content: center;
   z-index: 1000;
 }
-
 .modal {
   background: white;
   border-radius: 24px;
@@ -344,7 +392,7 @@ nav button.active {
   width: 90%;
   max-width: 400px;
 }
-
+.modal-patient { font-size: 14px; color: #5a6874; margin-bottom: 12px; }
 .modal-input {
   width: 100%;
   padding: 12px;
@@ -353,13 +401,7 @@ nav button.active {
   border-radius: 12px;
   font-size: 14px;
 }
-
-.modal-buttons {
-  display: flex;
-  gap: 12px;
-  margin-top: 20px;
-}
-
+.modal-buttons { display: flex; gap: 12px; margin-top: 20px; }
 .btn-secondary {
   background: #eef2f5;
   border: none;
